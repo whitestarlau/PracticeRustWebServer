@@ -3,6 +3,7 @@ use axum::{
     Router,
 };
 use dotenv::dotenv;
+use idgenerator::{IdGeneratorOptions, IdInstance};
 use std::env;
 use std::net::SocketAddr;
 
@@ -29,6 +30,16 @@ mod multiplexservice;
 async fn main() {
     dotenv().ok();
 
+
+    // 雪花算法生成唯一id
+    let options = IdGeneratorOptions::new().worker_id(1).worker_id_bit_len(6);
+    // Initialize the id generator instance with the option.
+    // Other options not set will be given the default value.
+    IdInstance::init(options);
+    // Call `next_id` to generate a new unique id.
+    // let id = IdInstance::next_id();
+
+
     //set database pool
     //设置数据库连接池。restful和grpc服务各用一个，不用考虑生命周期标注会比较简单。
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL should be set.");
@@ -38,8 +49,9 @@ async fn main() {
     // build our application with a route
     let rest = Router::new()
         .route("/", get(health_handler))
-        .route("/orders/:user_id", get(get_all_orders))
+        .route("/orders", get(get_all_orders))
         .route("/add_order", post(add_new_order))
+        .route("/request_order_token", get(request_new_order_token))
         .with_state(db_pool);
 
     let grpc = get_grpc_router(db_pool2);

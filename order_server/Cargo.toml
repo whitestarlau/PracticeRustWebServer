@@ -28,6 +28,8 @@ tonic = "0.8"
 prost = "0.11"
 hyper = "0.14.19"
 futures = "0.3"
+# 唯一id生成库，雪花算法
+idgenerator = "2.0.0"
 
 [build-dependencies]
 tonic-build = "0.8"

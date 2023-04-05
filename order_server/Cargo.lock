@@ -719,6 +719,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "idgenerator"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ab32f68e287887b5f783055dac63971ae26c76be1ebde166c64d5bf5bdd5b6a"
+dependencies = [
+ "chrono",
+ "once_cell",
+ "parking_lot 0.12.1",
+ "thiserror",
+]
+
+[[package]]
 name = "idna"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -932,6 +944,7 @@ dependencies = [
  "dotenv",
  "futures",
  "hyper",
+ "idgenerator",
  "prost",
  "serde",
  "serde_json",

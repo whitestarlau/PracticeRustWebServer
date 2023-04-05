@@ -1,4 +1,5 @@
 ## 订单微服务
+- 订单发起token获取（幂等需要）
 - 订单发起（post请求）
 - 订单支付状态刷新（客户端请求第三方收单，然后生成完成后由服务端到收单方进行查询。在demo中这是一个模拟的过程。）
 - 订单超时取消（定时任务实现）
@@ -21,5 +22,5 @@
 - grpc-actix rpc库
 - chrono 时间工具库
 
-## 需要设置一个DATABASE_URL的环境，(开发时可以在.env文件中设置）类似如下：
+## 需要设置一个DATABASE_URL的环境，类似如下：
 DATABASE_URL=postgres://username:password@localhost:5432/dbname
