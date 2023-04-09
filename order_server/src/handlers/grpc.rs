@@ -36,7 +36,7 @@ impl OrderService for GrpcServiceImpl {
         )
         .await;
 
-        let mut responseDatas: Vec<order_proto::Order> = Vec::new();
+        let mut response_datas: Vec<order_proto::Order> = Vec::new();
         if let Ok(datas) = db {
             for order in datas {
                 let item_id_str = serde_json::to_string(&order.items_id).unwrap_or_default();
@@ -50,12 +50,12 @@ impl OrderService for GrpcServiceImpl {
                     currency: order.currency,
                     description: des,
                 };
-                responseDatas.push(proto_order);
+                response_datas.push(proto_order);
             }
         }
 
         let response = order_proto::GetOrderRespone {
-            orders: responseDatas,
+            orders: response_datas,
         };
 
         println!("GrpcServiceImpl get_orders result: {:?}", response);

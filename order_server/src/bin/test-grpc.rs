@@ -1,5 +1,3 @@
-use serde::Deserialize;
-
 use crate::order_proto::{order_service_client::OrderServiceClient, GetOrderRequest};
 
 mod order_proto {
@@ -28,12 +26,12 @@ async fn grpc_get_order(user_id: i64) -> Result<String, String> {
         page: 0,
         page_size: 5,
     });
-    let getOrderRespone = client
+    let get_order_respone = client
         .get_orders(req)
         .await
         .map_err(|err| err.to_string())?
         .into_inner();
 
-    eprintln!("grpc_get_order result: {:?}", getOrderRespone);
+    eprintln!("grpc_get_order result: {:?}", get_order_respone);
     Ok("".to_string())
 }
