@@ -1,6 +1,6 @@
 // use crate::order_proto::{order_service_client::OrderServiceClient, GetOrderRequest};
 
-mod order_proto {
+mod proto {
     tonic::include_proto!("inventory");
 }
 

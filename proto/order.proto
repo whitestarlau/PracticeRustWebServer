@@ -9,9 +9,9 @@ message GetOrderRequest {
 
 message Order {
   int64 user_id = 1;
-  string items_id = 2;
-  string price = 3;
-  int32 total_price = 4;
+  int32 items_id = 2;
+  int32 price = 3;
+  int32 count = 4;
   string currency = 5;
   string description = 6;
 }
@@ -22,9 +22,9 @@ message GetOrderRespone {
 
 message AddOrderRequest {
   int64 user_id = 1;
-  string items_id = 2;
-  string price = 3;
-  int32 total_price = 4;
+  int32 items_id = 2;
+  int32 price = 3;
+  int32 count = 4;
   string currency = 5;
   string description = 6;
   int64 token = 7;

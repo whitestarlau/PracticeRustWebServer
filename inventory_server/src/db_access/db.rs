@@ -1,3 +1,5 @@
+use std::f32::consts::E;
+
 use axum::http::StatusCode;
 use sqlx::postgres::PgPool;
 
@@ -121,6 +123,8 @@ pub async fn add_inventory_from_db(
 
 /**
  * 扣减库存
+ *
+ * TODO 如果库存同一个订单的库存已经扣减过了，我们需要直接返回成功
  */
 pub async fn de_inventory_from_db(
     pool: &PgPool,
@@ -134,6 +138,29 @@ pub async fn de_inventory_from_db(
 
     if count < 0 {
         //扣减库存
+        let inventory_changed: Vec<InventoryChange> =
+        sqlx::query!("SELECT * FROM inventory_change WHERE deduction_order_id = $1", order_id)
+            .map({
+                |row| InventoryChange {
+                    id: row.id,
+                    inventory_id: row.inventory_id,
+                    deduction_order_id: row.deduction_order_id,
+                    count: row.count,
+                    description: row.description,
+                }
+            })
+            .fetch_all(pool)
+            .await
+            .map_err(internal_error)?;
+
+        if inventory_changed.len() >= 0 {
+            //之前已经扣减过库存了，直接返回成功，避免重入。
+            return Ok(ChangeInventoryResult {
+                result: 200,
+                description: Some("deduction already done,sucess.".to_string()),
+            });
+        }
+       
 
         let mut tx = pool.begin().await.unwrap();
 
