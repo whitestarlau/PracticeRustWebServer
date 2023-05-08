@@ -1,8 +1,8 @@
 [package]
-name = "order_server"
+name = "inventory_server"
 version = "0.1.0"
 edition = "2021"
-default-run = "order-service"
+default-run = "inventory-service"
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -28,21 +28,13 @@ tonic = "0.8"
 prost = "0.11"
 hyper = "0.14.19"
 futures = "0.3"
-# 唯一id生成库，雪花算法
-idgenerator = "2.0.0"
 
-# FromPrimitive派生特性
-num-traits = "0.2"
-num-derive = "0.3"
-
-# cron定时器
-tokio-cron-scheduler = "0.9.4"
 
 [build-dependencies]
 tonic-build = "0.8"
 
 [[bin]]
-name = "order-service"
+name = "inventory-service"
 
 [[bin]]
 name = "test-grpc"

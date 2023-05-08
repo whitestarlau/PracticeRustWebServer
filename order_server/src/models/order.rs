@@ -8,19 +8,24 @@ pub struct GetOrderParams {
     pub page_size: i64,
 }
 
+/**
+ * inventory_success 库存是否扣减成功
+ */
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Order {
     pub id: i32,
 
     pub user_id: i64,
 
-    pub items_id: Vec<String>,
-    pub price: Vec<i32>,
-    pub total_price: i32,
+    pub item_id: i32,
+    pub price: i32,
+    pub count : i32,
     pub currency: String,
 
     pub sub_time: i64,
     pub pay_time: i64,
+
+    pub inventory_state: i32,
 
     pub description: Option<String>,
 }
@@ -29,9 +34,9 @@ pub struct Order {
 pub struct AddOrder {
     pub user_id: i64,
 
-    pub items_id: Vec<String>,
-    pub price: Vec<i32>,
-    pub total_price: i32,
+    pub items_id: i32,
+    pub price: i32,
+    pub count : i32,
     pub currency: String,
 
     pub description: Option<String>,
@@ -47,4 +52,14 @@ pub struct AddOrderResult {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct NewOrderToken {
     pub token: i64,
+}
+
+
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct OrderDeInventoryMsg {
+    pub id: i32,
+    pub user_id: i64,
+
+    pub order_id: i32,
 }

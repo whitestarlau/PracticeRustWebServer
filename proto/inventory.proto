@@ -1,0 +1,16 @@
+syntax = "proto3";
+package inventory;
+
+message DeductionInventoryRequest {
+  int32 inventoryId = 1;
+  int32 deductionCount = 2;
+  int32 ordersId = 3;
+}
+
+message DeductionInventoryRespone {
+  int32 result = 1; 
+}
+
+service InventoryService {
+  rpc deductionInventory(DeductionInventoryRequest) returns (DeductionInventoryRespone);
+}

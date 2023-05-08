@@ -13,11 +13,15 @@ mod order_proto {
 
 pub struct GrpcServiceImpl {
     pool: PgPool,
+    local_pool: PgPool,
 }
 
 impl GrpcServiceImpl {
-    pub fn new(pg_pool: PgPool) -> GrpcServiceImpl {
-        return GrpcServiceImpl { pool: pg_pool };
+    pub fn new(pg_pool: PgPool, local_pool: PgPool) -> GrpcServiceImpl {
+        return GrpcServiceImpl {
+            pool: pg_pool,
+            local_pool: local_pool,
+        };
     }
 }
 
@@ -36,26 +40,25 @@ impl OrderService for GrpcServiceImpl {
         )
         .await;
 
-        let mut responseDatas: Vec<order_proto::Order> = Vec::new();
+        let mut response_datas: Vec<order_proto::Order> = Vec::new();
         if let Ok(datas) = db {
             for order in datas {
-                let item_id_str = serde_json::to_string(&order.items_id).unwrap_or_default();
-                let price_str = serde_json::to_string(&order.price).unwrap_or_default();
+                // let item_id_str = serde_json::to_string(&order.items_id).unwrap_or_default();
                 let des = order.description.unwrap_or_default();
                 let proto_order = order_proto::Order {
                     user_id: order.user_id,
-                    items_id: item_id_str,
-                    price: price_str,
-                    total_price: order.total_price,
+                    items_id: order.item_id,
+                    price: order.price,
+                    count: order.count,
                     currency: order.currency,
                     description: des,
                 };
-                responseDatas.push(proto_order);
+                response_datas.push(proto_order);
             }
         }
 
         let response = order_proto::GetOrderRespone {
-            orders: responseDatas,
+            orders: response_datas,
         };
 
         println!("GrpcServiceImpl get_orders result: {:?}", response);
@@ -70,14 +73,20 @@ impl OrderService for GrpcServiceImpl {
 
         let add = AddOrder {
             user_id: request_data.user_id,
-            items_id: Vec::new(),
-            price: Vec::new(),
-            total_price: request_data.total_price,
+            items_id: request_data.items_id,
+            price: request_data.price,
+            count: request_data.count,
             currency: request_data.currency,
             description: Option::Some(request_data.description),
             token: request_data.token,
         };
-        let db_result = add_new_order_from_db(&self.pool, add).await;
+        let db_result = add_new_order_from_db(
+            &self.pool,
+            &self.local_pool,
+            "https://127.0.0.1:3001".to_string(),
+            add,
+        )
+        .await;
 
         let response = match db_result {
             Ok(_) => order_proto::AddOrderRespone { result: 0 },
@@ -88,6 +97,6 @@ impl OrderService for GrpcServiceImpl {
     }
 }
 
-pub fn get_grpc_router(pgPool: PgPool) -> OrderServiceServer<GrpcServiceImpl> {
-    OrderServiceServer::new(GrpcServiceImpl::new(pgPool))
+pub fn get_grpc_router(pg_pool: PgPool, local_pool: PgPool) -> OrderServiceServer<GrpcServiceImpl> {
+    OrderServiceServer::new(GrpcServiceImpl::new(pg_pool, local_pool))
 }

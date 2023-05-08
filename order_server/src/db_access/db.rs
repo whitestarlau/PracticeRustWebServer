@@ -1,11 +1,21 @@
+use std::f32::consts::E;
+
 use axum::http::StatusCode;
 use chrono::NaiveDateTime;
 use sqlx::postgres::PgPool;
 
-use crate::models::{
-    error::internal_error,
-    order::{AddOrder, AddOrderResult, Order},
+use crate::{
+    db_access::repo::deduction_inventory_call,
+    models::{
+        error::internal_error,
+        order::{AddOrder, AddOrderResult, Order},
+        state::{InventoryResult, InventoryState},
+    },
 };
+
+mod inventory_proto {
+    tonic::include_proto!("inventory");
+}
 
 pub async fn get_all_orders_from_db(
     pool: &PgPool,
@@ -24,13 +34,14 @@ pub async fn get_all_orders_from_db(
         |row| Order {
             id: row.id,
             user_id: row.user_id,
-            items_id: serde_json::from_str(row.items_id.as_str()).unwrap_or_default(),
-            price: serde_json::from_str(row.price.as_str()).unwrap_or_default(),
-            total_price: row.total_price,
+            item_id: row.item_id,
+            price: row.price,
+            count: row.count,
             currency: row.currency.unwrap_or_default(),
             sub_time: NaiveDateTime::from(row.sub_time.unwrap()).timestamp_millis(),
             pay_time: NaiveDateTime::from(row.pay_time.unwrap()).timestamp_millis(),
             description: row.description,
+            inventory_state: row.inventory_state,
         }
     })
     .fetch_all(pool)
@@ -44,6 +55,8 @@ pub async fn get_all_orders_from_db(
 
 pub async fn add_new_order_from_db(
     pool: &PgPool,
+    local_pool: &PgPool,
+    inventory_addr: String,
     data: AddOrder,
 ) -> Result<AddOrderResult, (StatusCode, String)> {
     let des = data.description.unwrap_or_default();
@@ -51,22 +64,97 @@ pub async fn add_new_order_from_db(
 
     println!("add_new_order des: {}", des);
 
-    let item_ids_str = serde_json::to_string(&data.items_id).unwrap_or_default();
-    let price_json = serde_json::to_string(&price).unwrap_or_default();
+    //本地订单插入
+    // let item_ids_str = serde_json::to_string(&data.items_id).unwrap_or_default();
 
     let ts_1970 = NaiveDateTime::from_timestamp_opt(0, 0).unwrap_or_default();
 
-    let _rows = sqlx::query!("INSERT INTO orders (user_id, items_id, price, total_price, currency, pay_time, description) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+    let insert_result :Result<i32, (StatusCode, String)> = sqlx::query!("INSERT INTO orders (user_id, item_id, price, count, currency, pay_time, description,inventory_state) VALUES ($1, $2, $3, $4, $5, $6, $7,$8) RETURNING id",
         data.user_id,
-        item_ids_str, price_json,
-        data.total_price, data.currency,
-        ts_1970, des)
+        data.items_id,
+        data.price,data.count, data.currency,
+        ts_1970, des,
+        InventoryState::DOING as i32
+    )
+        .map(|row| row.id)
         .fetch_one(pool)
         .await
         .map_err(internal_error);
 
-    let result = AddOrderResult {
-        description: "add successed.".to_string(),
-    };
-    Ok(result)
+    match insert_result {
+        Ok(order_id) => {
+            let insert_msg = sqlx::query!(
+                "INSERT INTO orders_de_inventory_msg (user_id, order_id) VALUES ($1, $2) RETURNING id",
+                data.user_id,
+                order_id,
+            )
+            .map(|row| row.id)
+            .fetch_one(local_pool)
+            .await
+            .map_err(internal_error);
+
+            deduction_inventory(
+                pool,
+                local_pool,
+                inventory_addr,
+                data.items_id,
+                data.count,
+                order_id,
+            )
+            .await;
+
+            let result = AddOrderResult {
+                description: "add successed.".to_string(),
+            };
+            Ok(result)
+        }
+        Err(e) => Err(e),
+    }
+}
+
+/**
+ * 扣减库存，并更新本地数据库。
+ * 没有返回，调用者不关心这个函数的执行情况，因为结果是会放到数据库中，并由定时器定期轮询检查。
+ */
+pub async fn deduction_inventory(
+    pool: &PgPool,
+    local_pool: &PgPool,
+    inventory_addr: String,
+    items_id: i32,
+    count: i32,
+    order_id: i32,
+) {
+    //分布式事务，扣减库存
+    let deducation_resp = deduction_inventory_call(inventory_addr, items_id, count, order_id).await;
+    if let Ok(resp) = deducation_resp {
+        //响应为success的时候我们记录扣减库存成功
+        let inventory_state = if InventoryResult::SUCCESS as i32 == resp.result {
+            InventoryState::SUCCESS
+        } else {
+            InventoryState::FAIL
+        };
+
+        //删除消息数据库
+        //注意，这一步可能写成功也可能写失败，所以可能导致deduction_inventory_call反复被调用，库存那边需要保证同一个订单id不会重复扣减。
+        let _update_msg_result = sqlx::query!(
+            "DELETE FROM orders_de_inventory_msg where  order_id = ($1)",
+            order_id
+        )
+        .fetch_one(local_pool)
+        .await
+        .map_err(internal_error);
+
+        //标记扣减库存成功或者失败
+        let _update_result = sqlx::query!(
+            "UPDATE orders SET inventory_state = ($1) where id = ($2)",
+            inventory_state as i32,
+            order_id
+        )
+        .fetch_one(pool)
+        .await
+        .map_err(internal_error);
+    } else {
+        // 远程调用失败，不代表扣减库存失败，等待定时器轮训的时候继续尝试
+        //TODO 添加定时器轮询orders_de_inventory_msg表
+    }
 }
