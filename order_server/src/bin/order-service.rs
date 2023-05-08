@@ -5,17 +5,19 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use chrono::Utc;
 use dotenv::dotenv;
 use idgenerator::{IdGeneratorOptions, IdInstance};
-use std::env;
-use std::net::SocketAddr;
+use std::{env, sync::Arc};
+use std::{net::SocketAddr, thread};
+use tokio_cron_scheduler::{Job, JobScheduler};
 
 use sqlx::postgres::PgPoolOptions;
 
 use crate::{
     handlers::grpc::*,
-    handlers::rest::*,
-    models::state::{AppState, InventoryState},
+    handlers::{corn::poll_inventory_state_order_from_db, rest::*},
+    models::state::AppState,
     multiplexservice::MultiplexService,
 };
 
@@ -30,8 +32,22 @@ mod models;
 #[path = "../multiplex_service.rs"]
 mod multiplexservice;
 
-#[tokio::main]
-async fn main() {
+fn main() {
+    thread::spawn(|| {
+        //定时任务，用于定时轮询本地消息列表中有没有失败的任务没有处理
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            println!("start corn sched in main.");
+            corn_aysnc().await;
+        });
+    });
+
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
+        println!("start web_server in main.");
+        web_server().await;
+    });
+}
+
+async fn web_server() {
     dotenv().ok();
 
     // 雪花算法生成唯一id
@@ -89,6 +105,50 @@ async fn main() {
         .serve(tower::make::Shared::new(service))
         .await
         .unwrap();
+}
 
-    //TODO 新增一个定时器
+async fn corn_aysnc() {
+    let mut sched = JobScheduler::new().await.unwrap();
+
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL should be set.");
+    let local_database_url =
+        env::var("DATABASE_URL_LOCAL").expect("DATABASE_URL_LOCAL should be set.");
+
+    let db_pool_arc = Arc::new(PgPoolOptions::new().connect(&database_url).await.unwrap());
+    let local_db_pool_arc = Arc::new(
+        PgPoolOptions::new()
+            .connect(&local_database_url)
+            .await
+            .unwrap(),
+    );
+
+    let job = Job::new("1/10 * * * * *", move |uuid, l| {
+        let now = Utc::now().timestamp_millis();
+
+        println!("I run every 10 seconds ts:{}", now);
+        //TODO 进行定时任务
+
+        let db_pool = db_pool_arc.clone();
+        let local_db_pool = local_db_pool_arc.clone();
+        poll_inventory_state_order_from_db(
+            &db_pool,
+            &local_db_pool,
+            "https://127.0.0.1:3001".to_string(),
+        );
+    })
+    .unwrap();
+
+    //定时任务必须要启动成功，不能失败，所以直接用unwarp
+    sched.add(job).await.unwrap();
+    sched.start().await.unwrap();
+
+    println!("start corn sched.");
+
+    loop {
+        //一直等待，这里的定时任务要永久执行下去。
+        if let Ok(Some(it)) = sched.time_till_next_job().await {
+            println!("time_till_next_job {:?}", it);
+            tokio::time::sleep(it).await;
+        };
+    }
 }

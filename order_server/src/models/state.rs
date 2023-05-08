@@ -1,7 +1,4 @@
-use num_traits::FromPrimitive;
-
-use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Postgres};
+use sqlx::{PgPool};
 
 #[derive(Clone)]
 pub struct AppState {

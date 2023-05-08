@@ -53,3 +53,13 @@ pub struct AddOrderResult {
 pub struct NewOrderToken {
     pub token: i64,
 }
+
+
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct OrderDeInventoryMsg {
+    pub id: i32,
+    pub user_id: i64,
+
+    pub order_id: i32,
+}

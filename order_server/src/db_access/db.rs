@@ -140,7 +140,7 @@ pub async fn deduction_inventory(
             "DELETE FROM orders_de_inventory_msg where  order_id = ($1)",
             order_id
         )
-        .fetch_one(pool)
+        .fetch_one(local_pool)
         .await
         .map_err(internal_error);
 
