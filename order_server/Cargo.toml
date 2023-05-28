@@ -38,6 +38,10 @@ num-derive = "0.3"
 # cron定时器
 tokio-cron-scheduler = "0.9.4"
 
+# 用来请求consul中心的接口
+reqwest = { version = "0.11", features = ["json"] }
+urlencoding = "2"
+
 [build-dependencies]
 tonic-build = "0.8"
 

@@ -32,6 +32,9 @@ mod models;
 #[path = "../multiplex_service.rs"]
 mod multiplexservice;
 
+#[path = "../consul_api/mod.rs"]
+mod consul_api;
+
 fn main() {
     thread::spawn(|| {
         //定时任务，用于定时轮询本地消息列表中有没有失败的任务没有处理
@@ -79,7 +82,8 @@ async fn web_server() {
     let app_state = AppState {
         pool: db_pool,
         local_pool: local_db_pool,
-        inventory_addr: "https://127.0.0.1:3001".to_string(),
+        inventory_srv_id: "inventory-srv".to_string(),
+        // inventory_addr: "https://127.0.0.1:3001".to_string(),
     };
 
     // build our application with a route
@@ -97,10 +101,13 @@ async fn web_server() {
     let service = MultiplexService::new(rest, grpc);
 
     // run it
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = "127.0.0.1:3001";
     println!("listening on {}", addr);
 
-    axum::Server::bind(&addr)
+    //向consul中心注册自己
+    tokio::spawn(register_consul(&addr));
+
+    axum::Server::bind(&addr.parse().unwrap())
         // .serve(rest.into_make_service())
         .serve(tower::make::Shared::new(service))
         .await
@@ -151,4 +158,21 @@ async fn corn_aysnc() {
             tokio::time::sleep(it).await;
         };
     }
+}
+
+/**
+ * TODO 实现consul的健康检查服务
+ */
+async fn register_consul(addr: &str) {
+    println!("register consul doing...");
+    let addrs: Vec<&str> = addr.split(":").collect();
+    let addr = addrs[0];
+    let port: i32 = addrs[1].parse().unwrap();
+    let opt = consul_api::model::ConsulOption::default();
+    let cs = consul_api::consul::Consul::new(opt).unwrap();
+
+    //register consul name as order-srv.
+    let reg = consul_api::model::Registration::simple("order-srv", addr, port);
+    cs.register(&reg).await.unwrap();
+    println!("register consul done.");
 }

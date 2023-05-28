@@ -1,12 +1,14 @@
-use sqlx::{PgPool};
+use sqlx::PgPool;
+
+use crate::consul_api::consul::Consul;
 
 #[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
     pub local_pool: PgPool,
-    pub inventory_addr: String,
+    pub inventory_srv_id: String,
+    // pub inventory_addr: String,
 }
-
 
 #[derive(FromPrimitive)]
 pub enum InventoryState {

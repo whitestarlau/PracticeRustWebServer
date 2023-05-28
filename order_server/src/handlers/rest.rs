@@ -1,3 +1,5 @@
+use std::f32::consts::E;
+
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -5,10 +7,11 @@ use axum::{
     Json,
 };
 
+use futures::TryFutureExt;
 use idgenerator::IdInstance;
 
-
 use crate::{
+    consul_api,
     db_access::db::{add_new_order_from_db, get_all_orders_from_db},
     models::{
         order::{AddOrder, AddOrderResult, GetOrderParams, NewOrderToken, Order},
@@ -53,11 +56,31 @@ pub async fn add_new_order(
 ) -> Result<axum::Json<AddOrderResult>, (StatusCode, String)> {
     //TODO 此处插入数据合法性校验
 
-    add_new_order_from_db(&state.pool, &state.local_pool, state.inventory_addr, data)
+    //从consul获取库存微服务的地址
+    let cs = consul_api::consul::Consul::newDefault().map_err(map_consult_error)?;
+    let filter = consul_api::model::Filter::ID(state.inventory_srv_id);
+    let srv_option = cs.get_service(&filter).await.map_err(map_consult_error)?;
+    
+    if let Some(srv) = srv_option {
+        let inventory_addr = srv.address;
+        add_new_order_from_db(&state.pool, &state.local_pool, inventory_addr, data)
         .await
         .map(map_ok_result)
+    }else {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "cannot found inventory_srv from consul.".to_string(),
+        ));
+    }
 }
 
 pub fn map_ok_result<T>(r: T) -> axum::Json<T> {
     axum::Json(r)
+}
+
+pub fn map_consult_error(err: reqwest::Error) -> (StatusCode, String) {
+    return (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "consul error.".to_string(),
+    );
 }

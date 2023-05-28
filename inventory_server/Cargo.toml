@@ -30,6 +30,11 @@ hyper = "0.14.19"
 futures = "0.3"
 
 
+# 用来请求consul中心的接口
+reqwest = { version = "0.11", features = ["json"] }
+urlencoding = "2"
+
+
 [build-dependencies]
 tonic-build = "0.8"
 

@@ -12,7 +12,10 @@ use crate::{
     handlers::rest::*,
     handlers::grpc::*,
     multiplexservice::MultiplexService,
+    consul_api::consul::*,
+    consul_api::model::*,
 };
+
 
 #[path = "../db_access/mod.rs"]
 mod db_access;
@@ -24,6 +27,10 @@ mod models;
 
 #[path = "../multiplex_service.rs"]
 mod multiplexservice;
+
+
+#[path = "../consul_api/mod.rs"]
+mod consul_api;
 
 #[tokio::main]
 async fn main() {
@@ -49,12 +56,34 @@ async fn main() {
     let service = MultiplexService::new(rest, grpc);
 
     // run it
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3001));
+    let addr = "127.0.0.1:3001";
+    // let addr = SocketAddr::from(([127, 0, 0, 1], 3001));
     println!("listening on {}", addr);
 
-    axum::Server::bind(&addr)
+    //向consul中心注册自己
+    tokio::spawn(register(&addr));
+
+    axum::Server::bind(&addr.parse().unwrap())
         // .serve(rest.into_make_service())
         .serve(tower::make::Shared::new(service))
         .await
         .unwrap();
+}
+
+
+/**
+ * TODO 实现consul的健康检查服务
+ */
+async fn register(addr: &str) {
+    println!("register consul doing...");
+    let addrs: Vec<&str> = addr.split(":").collect();
+    let addr = addrs[0];
+    let port: i32 = addrs[1].parse().unwrap();
+    let opt = consul_api::model::ConsulOption::default();
+    let cs = consul_api::consul::Consul::new(opt).unwrap();
+
+    //register consul name as inventory-srv.
+    let reg = consul_api::model::Registration::simple("inventory-srv", addr, port);
+    cs.register(&reg).await.unwrap();
+    println!("register consul done.");
 }
