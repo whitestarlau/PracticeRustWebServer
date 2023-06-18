@@ -1,6 +1,7 @@
-use std::{time::Duration, f32::consts::E};
+use std::time::Duration;
 
-use super::model::{ConsulOption, Filter, Registration, Service, Services};
+use super::model::{ConsulOption, Filter, Services, Service, Registration};
+
 
 pub struct Consul {
     option: ConsulOption,
@@ -11,7 +12,7 @@ impl Consul {
     pub fn newDefault() -> Result<Self, reqwest::Error> {
         return Consul::new(ConsulOption::default());
     }
-
+    
     pub fn new(option: ConsulOption) -> Result<Self, reqwest::Error> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(option.timeout_sec))
@@ -25,7 +26,8 @@ impl Consul {
             &self.option.protocol, &self.option.addr, api_name
         )
     }
-
+    
+    
     pub async fn register(&self, registration: &Registration) -> Result<(), reqwest::Error> {
         self.client
             .put(self.api_url("service/register"))
@@ -34,7 +36,8 @@ impl Consul {
             .await?;
         Ok(())
     }
-
+    
+    
     pub async fn deregister(&self, service_id: &str) -> Result<(), reqwest::Error> {
         let deregister_api = format!("service/deregister/{}", service_id);
         self.client
@@ -44,7 +47,8 @@ impl Consul {
             .await?;
         Ok(())
     }
-
+    
+    
     pub async fn services(&self) -> Result<Services, reqwest::Error> {
         let list: Services = self
             .client
@@ -55,7 +59,8 @@ impl Consul {
             .await?;
         Ok(list)
     }
-
+    
+    
     pub async fn get_service(&self, filter: &Filter) -> Result<Option<Service>, reqwest::Error> {
         let list = self.services().await?;
         for (_, s) in list {

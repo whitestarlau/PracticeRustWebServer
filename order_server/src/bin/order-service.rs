@@ -83,12 +83,13 @@ async fn web_server() {
         pool: db_pool,
         local_pool: local_db_pool,
         inventory_srv_id: "inventory-srv".to_string(),
-        // inventory_addr: "https://127.0.0.1:3001".to_string(),
     };
+
+    let health_check_path = "/health_check";
 
     // build our application with a route
     let rest = Router::new()
-        .route("/", get(health_handler))
+        .route(health_check_path, get(health_handler))
         .route("/orders", get(get_all_orders))
         .route("/add_order", post(add_new_order))
         .route("/request_order_token", get(request_new_order_token))
@@ -101,11 +102,11 @@ async fn web_server() {
     let service = MultiplexService::new(rest, grpc);
 
     // run it
-    let addr = "127.0.0.1:3001";
+    let addr = "127.0.0.1:3002";
     println!("listening on {}", addr);
 
     //向consul中心注册自己
-    tokio::spawn(register_consul(&addr));
+    tokio::spawn(register_consul(&addr, health_check_path));
 
     axum::Server::bind(&addr.parse().unwrap())
         // .serve(rest.into_make_service())
@@ -161,9 +162,9 @@ async fn corn_aysnc() {
 }
 
 /**
- * TODO 实现consul的健康检查服务
+ * 注册微服务到consul中
  */
-async fn register_consul(addr: &str) {
+async fn register_consul(addr: &str, health_check_path: &str) {
     println!("register consul doing...");
     let addrs: Vec<&str> = addr.split(":").collect();
     let addr = addrs[0];
@@ -171,8 +172,20 @@ async fn register_consul(addr: &str) {
     let opt = consul_api::model::ConsulOption::default();
     let cs = consul_api::consul::Consul::new(opt).unwrap();
 
+    let health_check_url = format!("http://{}:{}{}", addr, port, health_check_path);
+
+    let health_check = consul_api::model::HealthCheck::new(health_check_url.to_string());
+
+    println!("register consul health_check params:{:?}", health_check);
+
     //register consul name as order-srv.
-    let reg = consul_api::model::Registration::simple("order-srv", addr, port);
+    let reg = consul_api::model::Registration::simple_with_health_check(
+        "order-srv",
+        addr,
+        port,
+        health_check,
+    );
+
     cs.register(&reg).await.unwrap();
     println!("register consul done.");
 }

@@ -12,7 +12,8 @@ use crate::{
 };
 
 pub async fn health_handler() -> Html<&'static str> {
-    Html("<h1>Order server health ok.</h1>")
+    println!("some one call health check api.");
+    Html("<h1>Inventory server health ok.</h1>")
 }
 
 pub async fn query_inventory(

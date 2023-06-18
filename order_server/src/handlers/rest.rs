@@ -20,6 +20,7 @@ use crate::{
 };
 
 pub async fn health_handler() -> Html<&'static str> {
+    println!("some one call health check api.");
     Html("<h1>Order server health ok.</h1>")
 }
 
@@ -60,13 +61,13 @@ pub async fn add_new_order(
     let cs = consul_api::consul::Consul::newDefault().map_err(map_consult_error)?;
     let filter = consul_api::model::Filter::ID(state.inventory_srv_id);
     let srv_option = cs.get_service(&filter).await.map_err(map_consult_error)?;
-    
+
     if let Some(srv) = srv_option {
         let inventory_addr = srv.address;
         add_new_order_from_db(&state.pool, &state.local_pool, inventory_addr, data)
-        .await
-        .map(map_ok_result)
-    }else {
+            .await
+            .map(map_ok_result)
+    } else {
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             "cannot found inventory_srv from consul.".to_string(),

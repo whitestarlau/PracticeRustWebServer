@@ -1,7 +1,4 @@
-use axum::{
-    routing::get,
-    Router,
-};
+use axum::{routing::get, Router};
 use dotenv::dotenv;
 use std::env;
 use std::net::SocketAddr;
@@ -9,13 +6,9 @@ use std::net::SocketAddr;
 use sqlx::postgres::PgPoolOptions;
 
 use crate::{
-    handlers::rest::*,
-    handlers::grpc::*,
+    consul_api::consul::*, consul_api::model::*, handlers::grpc::*, handlers::rest::*,
     multiplexservice::MultiplexService,
-    consul_api::consul::*,
-    consul_api::model::*,
 };
-
 
 #[path = "../db_access/mod.rs"]
 mod db_access;
@@ -27,7 +20,6 @@ mod models;
 
 #[path = "../multiplex_service.rs"]
 mod multiplexservice;
-
 
 #[path = "../consul_api/mod.rs"]
 mod consul_api;
@@ -42,16 +34,21 @@ async fn main() {
     let db_pool = PgPoolOptions::new().connect(&database_url).await.unwrap();
     let db_pool2 = PgPoolOptions::new().connect(&database_url).await.unwrap();
 
+    let health_check_path = "/health_check";
+
     // build our application with a route
     let rest = Router::new()
-        .route("/", get(health_handler))
+        .route(health_check_path, get(health_handler))
         .route("/query_inventory", get(query_inventory))
-        .route("/query_inventory_change", get(query_inventory_change_history))
+        .route(
+            "/query_inventory_change",
+            get(query_inventory_change_history),
+        )
         .with_state(db_pool);
 
     let grpc = get_grpc_router(db_pool2);
 
-    // combine them into one service 
+    // combine them into one service
     // 将rest和grpc两种路由合并到一起
     let service = MultiplexService::new(rest, grpc);
 
@@ -61,7 +58,7 @@ async fn main() {
     println!("listening on {}", addr);
 
     //向consul中心注册自己
-    tokio::spawn(register(&addr));
+    tokio::spawn(register_consul(addr, health_check_path));
 
     axum::Server::bind(&addr.parse().unwrap())
         // .serve(rest.into_make_service())
@@ -70,11 +67,10 @@ async fn main() {
         .unwrap();
 }
 
-
 /**
- * TODO 实现consul的健康检查服务
+ * 注册到consul中，并实现http健康检查
  */
-async fn register(addr: &str) {
+async fn register_consul(addr: &str, health_check_path: &str) {
     println!("register consul doing...");
     let addrs: Vec<&str> = addr.split(":").collect();
     let addr = addrs[0];
@@ -82,8 +78,20 @@ async fn register(addr: &str) {
     let opt = consul_api::model::ConsulOption::default();
     let cs = consul_api::consul::Consul::new(opt).unwrap();
 
+    let health_check_url = format!("http://{}:{}{}", addr, port, health_check_path);
+
+    let health_check = consul_api::model::HealthCheck::new(health_check_url.to_string());
+
+    println!("register consul health_check params:{:?}", health_check);
+
     //register consul name as inventory-srv.
-    let reg = consul_api::model::Registration::simple("inventory-srv", addr, port);
+    let reg = consul_api::model::Registration::simple_with_health_check(
+        "inventory-srv",
+        addr,
+        port,
+        health_check,
+    );
+
     cs.register(&reg).await.unwrap();
     println!("register consul done.");
 }
