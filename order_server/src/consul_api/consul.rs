@@ -78,7 +78,7 @@ impl Consul {
 
 #[cfg(test)]
 mod tests {
-    use crate::consul_api::model::Registration;
+    use crate::consul_api::model::{Registration, HealthCheck};
 
     use super::*;
     #[tokio::test]
@@ -100,12 +100,16 @@ mod tests {
         let cs = Consul::new(opt);
         assert!(cs.is_ok());
         let cs = cs.unwrap();
-        let registration = Registration::simple_with_tags(
+
+        let health_check = HealthCheck::new("127.0.0.1:1111/health_check".to_string());
+
+        let registration = Registration::simple_with_health_check(
             "axum.rs",
-            vec!["axum", "tokio", "grpc", "tonic"],
             "127.0.0.1",
             12345,
+            health_check
         );
+        
         let r = cs.register(&registration).await;
         assert!(r.is_ok());
     }
