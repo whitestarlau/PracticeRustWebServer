@@ -10,6 +10,9 @@ use crate::{
     multiplexservice::MultiplexService,
 };
 
+use log;
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
+
 #[path = "../db_access/mod.rs"]
 mod db_access;
 #[path = "../handlers/mod.rs"]
@@ -27,6 +30,11 @@ mod consul_api;
 #[tokio::main]
 async fn main() {
     dotenv().ok();
+
+    // tracing_subscriber::registry()
+    //     .with(fmt::layer())
+    //     .init();
+    // tracing::info!("Hello from tracing");
 
     //set database pool
     //设置数据库连接池。restful和grpc服务各用一个，不用考虑生命周期标注会比较简单。

@@ -2,7 +2,7 @@ use sqlx::PgPool;
 
 use crate::consul_api::consul::Consul;
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct AppState {
     pub pool: PgPool,
     pub local_pool: PgPool,

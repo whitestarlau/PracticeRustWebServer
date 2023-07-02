@@ -3,6 +3,7 @@ use std::f32::consts::E;
 use axum::http::StatusCode;
 use chrono::NaiveDateTime;
 use sqlx::postgres::PgPool;
+use tracing::info;
 
 use crate::{
     db_access::repo::deduction_inventory_call,
@@ -48,7 +49,7 @@ pub async fn get_all_orders_from_db(
     .await
     .map_err(internal_error)?;
 
-    println!("get_all_orders_from_db size: {}", orders.len());
+    info!("get_all_orders_from_db size: {}", orders.len());
 
     Ok(orders)
 }

@@ -8,9 +8,11 @@ use axum::{
 use chrono::Utc;
 use dotenv::dotenv;
 use idgenerator::{IdGeneratorOptions, IdInstance};
-use std::{env, sync::Arc};
+use std::{env, fs::File, sync::Arc};
 use std::{net::SocketAddr, thread};
 use tokio_cron_scheduler::{Job, JobScheduler};
+use tracing::{info, span, Level, Subscriber};
+use tracing_appender::rolling::{RollingFileAppender, Rotation};
 
 use sqlx::postgres::PgPoolOptions;
 
@@ -20,6 +22,8 @@ use crate::{
     models::state::AppState,
     multiplexservice::MultiplexService,
 };
+
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[path = "../db_access/mod.rs"]
 mod db_access;
@@ -52,6 +56,12 @@ fn main() {
 
 async fn web_server() {
     dotenv().ok();
+
+    //初始化tracing
+    let file_appender = tracing_appender::rolling::hourly("./axum_log", "prefix.log");
+    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+    // tracing_subscriber::registry().with(fmt::layer()).init();
+    tracing_subscriber::fmt().with_writer(non_blocking).init();
 
     // 雪花算法生成唯一id
     let options = IdGeneratorOptions::new().worker_id(1).worker_id_bit_len(6);
@@ -131,10 +141,12 @@ async fn corn_aysnc() {
     );
 
     let job = Job::new("1/10 * * * * *", move |uuid, l| {
+        let span = span!(Level::TRACE, "corn_async");
+        let enter = span.enter();
+
         let now = Utc::now().timestamp_millis();
 
-        println!("I run every 10 seconds ts:{}", now);
-        //TODO 进行定时任务
+        info!("I run every 10 seconds ts:{}", now);
 
         let db_pool = db_pool_arc.clone();
         let local_db_pool = local_db_pool_arc.clone();
@@ -155,7 +167,7 @@ async fn corn_aysnc() {
     loop {
         //一直等待，这里的定时任务要永久执行下去。
         if let Ok(Some(it)) = sched.time_till_next_job().await {
-            println!("time_till_next_job {:?}", it);
+            info!("time_till_next_job {:?}", it);
             tokio::time::sleep(it).await;
         };
     }

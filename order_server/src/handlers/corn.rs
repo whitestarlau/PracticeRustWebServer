@@ -1,5 +1,6 @@
 use chrono::NaiveDateTime;
 use sqlx::PgPool;
+use tracing::instrument;
 
 use crate::{
     db_access::{repo::deduction_inventory_call, db::deduction_inventory},

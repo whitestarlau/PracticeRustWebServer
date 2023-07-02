@@ -10,6 +10,10 @@ use axum::{
 use futures::TryFutureExt;
 use idgenerator::IdInstance;
 
+use tracing::{info, instrument};
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
+
+
 use crate::{
     consul_api,
     db_access::db::{add_new_order_from_db, get_all_orders_from_db},
@@ -19,16 +23,20 @@ use crate::{
     },
 };
 
+#[instrument]
 pub async fn health_handler() -> Html<&'static str> {
     println!("some one call health check api.");
     Html("<h1>Order server health ok.</h1>")
 }
 
+
+#[instrument]
 pub async fn get_all_orders(
     State(state): State<AppState>,
     Query(query_params): Query<GetOrderParams>,
 ) -> Result<axum::Json<Vec<Order>>, (StatusCode, String)> {
-    // println!("get_all_orders user_id: {}", query_params.user_id);
+    info!("get_all_orders user_id: {}", query_params.user_id);
+    println!("get_all_orders user_id: {}", query_params.user_id);
     get_all_orders_from_db(
         &state.pool,
         query_params.user_id,
