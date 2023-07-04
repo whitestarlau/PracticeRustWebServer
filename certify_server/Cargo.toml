@@ -1,0 +1,60 @@
+[package]
+name = "certify_server"
+version = "0.1.0"
+edition = "2021"
+default-run = "certify-service"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+axum = { version = "0.6.10", features = ["headers"] }
+tokio = { version = "1.0", features = ["full"] }
+dotenv = "0.15.0"
+sqlx = { version = "0.6.2", features = [
+    "postgres",
+    "runtime-tokio-rustls",
+    "macros",
+    "chrono",
+    "uuid",
+] }
+
+reqwest = { version = "0.11", features = ["json"] }
+urlencoding = "2"
+
+# 追踪和日志库
+log = "0.4"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+tracing-appender = "0.2.2"
+
+# 密码hash
+bcrypt = "0.10"
+# 输入参数校验
+validator = { version = "0.14", features = ["derive"] }
+
+# jwt生成及验证
+jsonwebtoken = "7.2"
+# 延迟初始化
+lazy_static = "1.4"
+
+# 序列化和反序列化
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# uuid生成
+uuid = { version = "1.4.0", features = ["serde", "v4"] }
+# 并行库
+rayon = "1.5"
+
+# 
+chrono = { version = "0.4", features = ["serde"] }
+
+thiserror = "1"
+
+# 用于帮助解析请求头
+headers = "0.3"
+
+
+
+[[bin]]
+name = "certify-service"
