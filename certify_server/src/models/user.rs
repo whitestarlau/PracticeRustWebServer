@@ -7,7 +7,6 @@ use validator::Validate;
 
 use axum::{extract::FromRequestParts, http::HeaderMap};
 
-use crate::utils::jwt;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct User {

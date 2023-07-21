@@ -8,6 +8,8 @@ default-run = "order-service"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+common_lib = { path = "../common_lib" }
+
 axum = "0.6.10"
 tokio = { version = "1.0", features = ["full"] }
 tower = { version = "0.4", features = ["util"] }

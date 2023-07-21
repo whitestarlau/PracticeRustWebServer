@@ -7,22 +7,25 @@ use axum::{
     Json,
 };
 
-use jsonwebtoken::TokenData;
+use jsonwebtoken::EncodingKey;
+use jwt_lib::{
+    encryption,
+    jwt::{self, Claims},
+};
+
+use common_lib::{
+    validate_payload,internal_error,internal_error_dyn,
+};
+
 use tracing::{info, instrument};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
-    config::constants::BEARER,
+    config::{constants::BEARER, env},
     db_access::db::{add_new_user_from_db, find_user_by_email},
     models::{
-        error::internal_error,
         state::AppState,
         user::{SignUser, SignUserResp, TokenPayload},
-    },
-    utils::{
-        encryption,
-        jwt::{self, Claims},
-        validate_payload,
     },
 };
 
@@ -45,7 +48,8 @@ pub async fn sign_up(
 
     println!("sign_up add_new_user_from_db success.");
 
-    let token = jwt::sign(addResultId).map_err(internal_error)?;
+    let encodingKey: EncodingKey = EncodingKey::from_secret(env::JWT_SECRET.as_bytes());
+    let token = jwt::sign(addResultId, &encodingKey).map_err(internal_error)?;
     let token_payload = TokenPayload {
         access_token: token,
         token_type: "Bearer".to_string(),
@@ -68,10 +72,14 @@ pub async fn sign_in(
     validate_payload(&user).map_err(internal_error)?;
     let find_user = find_user_by_email(&state.pool, user.email).await?;
 
-    let verify_password = encryption::verify_password(user.password, find_user.password_hash).await.map_err(internal_error)?;
-    
+    let verify_password = encryption::verify_password(user.password, find_user.password_hash)
+        .await
+        .map_err(internal_error_dyn)?;
+
     if verify_password {
-        let token = jwt::sign(find_user.id).map_err(internal_error)?;
+        let encodingKey: EncodingKey = EncodingKey::from_secret(env::JWT_SECRET.as_bytes());
+
+        let token = jwt::sign(find_user.id, &encodingKey).map_err(internal_error)?;
         let token_payload = TokenPayload {
             access_token: token,
             token_type: "Bearer".to_string(),
@@ -92,7 +100,9 @@ pub async fn sign_in(
  * 验证一下是否是我们签发的token
  */
 #[instrument]
-pub async fn verify(claims_op: Option<Claims>) -> Result<axum::Json<bool>, (StatusCode, String)> {
+pub async fn verify_token(
+    claims_op: Option<Claims>,
+) -> Result<axum::Json<bool>, (StatusCode, String)> {
     if let Some(claims) = claims_op {
         return Ok(Json(true));
     } else {

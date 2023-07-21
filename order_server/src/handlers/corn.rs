@@ -1,11 +1,11 @@
 use chrono::NaiveDateTime;
+use common_lib::internal_error;
 use sqlx::PgPool;
 use tracing::instrument;
 
 use crate::{
     db_access::{repo::deduction_inventory_call, db::deduction_inventory},
     models::{
-        error::internal_error,
         order::{Order, OrderDeInventoryMsg},
         state::{InventoryResult, InventoryState},
     },

@@ -7,16 +7,13 @@ use axum::{Router, routing::{get, post}};
 use sqlx::postgres::PgPoolOptions;
 use dotenv::dotenv;
 
-use crate::{models::state::AppState, handlers::rest::{health_handler, sign_up, sign_in, verify}};
+use crate::{models::state::AppState, handlers::rest::{health_handler, sign_up, sign_in, verify_token}};
 
 #[path = "../models/mod.rs"]
 mod models;
 
 #[path = "../handlers/mod.rs"]
 mod handlers;
-
-#[path = "../utils/mod.rs"]
-mod utils;
 
 #[path = "../config/mod.rs"]
 mod config;
@@ -58,7 +55,7 @@ async fn web_server() {
         .route(health_check_path, get(health_handler))
         .route("/sign_up", post(sign_up))
         .route("/sign_in", post(sign_in))
-        .route("/verify", post(verify).get(verify))
+        .route("/verify", post(verify_token).get(verify_token))
         .with_state(app_state);
 
     // run it

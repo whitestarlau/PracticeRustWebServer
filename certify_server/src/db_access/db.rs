@@ -2,16 +2,16 @@ use std::f32::consts::E;
 
 use axum::http::StatusCode;
 use chrono::NaiveDateTime;
+use common_lib::{internal_error_dyn, internal_error};
+use jwt_lib::{encryption};
 use sqlx::postgres::PgPool;
 use tracing::info;
 use uuid::Uuid;
 
 use crate::{
     models::{
-        error::internal_error,
         user::{SignUser, User},
     },
-    utils::encryption,
 };
 
 pub async fn find_user_by_email(
@@ -59,7 +59,7 @@ pub async fn add_new_user_from_db(
         let ts_1970 = NaiveDateTime::from_timestamp_opt(0, 0).unwrap_or_default();
         let password_hash = encryption::hash_password(user.password)
             .await
-            .map_err(internal_error)?;
+            .map_err(internal_error_dyn)?;
     
         println!("add_new_user_from_db password_hash: {}", password_hash);
     

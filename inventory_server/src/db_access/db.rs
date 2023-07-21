@@ -1,10 +1,10 @@
 use std::f32::consts::E;
 
 use axum::http::StatusCode;
+use common_lib::internal_error;
 use sqlx::postgres::PgPool;
 
 use crate::models::{
-    error::internal_error,
     inventory::{
         AddInventoryRequest, ChangeInventoryResult, DeducteInventoryRequest, Inventory,
         InventoryChange,

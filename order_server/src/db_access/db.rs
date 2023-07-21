@@ -2,13 +2,13 @@ use std::f32::consts::E;
 
 use axum::http::StatusCode;
 use chrono::NaiveDateTime;
+use common_lib::internal_error;
 use sqlx::postgres::PgPool;
 use tracing::info;
 
 use crate::{
     db_access::repo::deduction_inventory_call,
     models::{
-        error::internal_error,
         order::{AddOrder, AddOrderResult, Order},
         state::{InventoryResult, InventoryState},
     },
@@ -83,7 +83,7 @@ pub async fn add_new_order_from_db(
         .map_err(internal_error);
 
     match insert_result {
-        Ok(order_id) => {
+        Ok(order_id ) => {
             let insert_msg = sqlx::query!(
                 "INSERT INTO orders_de_inventory_msg (user_id, order_id) VALUES ($1, $2) RETURNING id",
                 data.user_id,

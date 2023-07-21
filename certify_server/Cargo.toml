@@ -7,6 +7,9 @@ default-run = "certify-service"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+jwt_lib = { path = "../jwt_lib" }
+common_lib = { path = "../common_lib" }
+
 axum = { version = "0.6.10", features = ["headers"] }
 tokio = { version = "1.0", features = ["full"] }
 dotenv = "0.15.0"
@@ -27,13 +30,14 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 tracing-appender = "0.2.2"
 
-# 密码hash
-bcrypt = "0.10"
+
 # 输入参数校验
 validator = { version = "0.14", features = ["derive"] }
 
+
 # jwt生成及验证
 jsonwebtoken = "7.2"
+
 # 延迟初始化
 lazy_static = "1.4"
 

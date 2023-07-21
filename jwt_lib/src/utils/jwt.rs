@@ -1,18 +1,21 @@
+use std::env;
+
 use axum::{
     async_trait,
     extract::{FromRequest, FromRequestParts, TypedHeader},
-    http::request::Parts, RequestPartsExt,
+    http::request::Parts,
+    RequestPartsExt,
 };
 use chrono::{Duration, Utc};
-use headers::{HeaderMap, Authorization, authorization::Bearer};
+use headers::{authorization::Bearer, Authorization, HeaderMap};
+use http::StatusCode;
 use jsonwebtoken::{errors::Error, DecodingKey, EncodingKey, Header, Validation};
-use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{config::env, models::error::internal_error};
-
-// use crate::{config::env::{JWT_SECRET, self}};
+lazy_static! {
+    pub static ref JWT_SECRET: String = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+}
 
 /**
  * jwt 中claims中的部分
@@ -37,21 +40,19 @@ impl Claims {
     }
 }
 
-pub fn sign(id: Uuid) -> Result<String, Error> {
+pub fn sign(id: Uuid, encodingKey: &EncodingKey) -> Result<String, Error> {
     Ok(jsonwebtoken::encode(
         &Header::default(),
         &Claims::new(id),
-        &EncodingKey::from_secret(env::JWT_SECRET.as_bytes()),
+        encodingKey,
     )?)
 }
 
-pub fn verify(token: &str) -> Result<Claims, Error> {
-    Ok(jsonwebtoken::decode(
-        token,
-        &DecodingKey::from_secret(env::JWT_SECRET.as_bytes()),
-        &Validation::default(),
+pub fn verify(token: &str, decodeKey: &DecodingKey) -> Result<Claims, Error> {
+    Ok(
+        jsonwebtoken::decode(token, decodeKey, &Validation::default())
+            .map(|data: jsonwebtoken::TokenData<Claims>| data.claims)?,
     )
-    .map(|data: jsonwebtoken::TokenData<Claims>| data.claims)?)
 }
 
 #[async_trait]
@@ -62,13 +63,16 @@ where
     type Rejection = (StatusCode, String);
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        let deKey = &DecodingKey::from_secret(JWT_SECRET.as_bytes());
+
         // Extract the token from the authorization header
         let TypedHeader(Authorization(bearer)) = parts
             .extract::<TypedHeader<Authorization<Bearer>>>()
             .await
-            .map_err(internal_error)?;
+            .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
         // Decode the user data
-        let claims = verify(bearer.token()).map_err(internal_error)?;
+        let claims = verify(bearer.token(), deKey)
+            .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
 
         Ok(claims)
     }

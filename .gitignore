@@ -3,3 +3,4 @@
 .DS_Store?
 .idea
 **/axum_log
+**/target
