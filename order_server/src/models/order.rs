@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 pub struct GetOrderParams {
-    pub user_id: i64,
+    pub user_id: Uuid,
     pub page: i64,
     pub page_size: i64,
 }
@@ -15,7 +16,7 @@ pub struct GetOrderParams {
 pub struct Order {
     pub id: i32,
 
-    pub user_id: i64,
+    pub user_id: Uuid,
 
     pub item_id: i32,
     pub price: i32,
@@ -32,8 +33,6 @@ pub struct Order {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct AddOrder {
-    pub user_id: i64,
-
     pub items_id: i32,
     pub price: i32,
     pub count : i32,
@@ -59,7 +58,7 @@ pub struct NewOrderToken {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct OrderDeInventoryMsg {
     pub id: i32,
-    pub user_id: i64,
+    pub user_id: Uuid,
 
     pub order_id: i32,
 }

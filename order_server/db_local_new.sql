@@ -3,7 +3,7 @@ drop table if exists orders_de_inventory_msg;
 create table orders_de_inventory_msg (
        id serial primary key,
 
-       user_id BIGINT not null,
+       user_id UUID not null,
 
        order_id INT not null,
 
