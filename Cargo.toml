@@ -6,4 +6,5 @@ members = [
     "inventory_server",
     "jwt_lib",
     "common_lib",
+    "consul_reg_lib",
 ]

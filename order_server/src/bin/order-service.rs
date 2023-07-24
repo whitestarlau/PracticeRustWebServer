@@ -36,8 +36,6 @@ mod models;
 #[path = "../multiplex_service.rs"]
 mod multiplexservice;
 
-#[path = "../consul_api/mod.rs"]
-mod consul_api;
 
 fn main() {
     thread::spawn(|| {
@@ -181,17 +179,17 @@ async fn register_consul(addr: &str, health_check_path: &str) {
     let addrs: Vec<&str> = addr.split(":").collect();
     let addr = addrs[0];
     let port: i32 = addrs[1].parse().unwrap();
-    let opt = consul_api::model::ConsulOption::default();
-    let cs = consul_api::consul::Consul::new(opt).unwrap();
+    let opt = consul_reg_lib::model::ConsulOption::default();
+    let cs = consul_reg_lib::consul::Consul::new(opt).unwrap();
 
     let health_check_url = format!("http://{}:{}{}", addr, port, health_check_path);
 
-    let health_check = consul_api::model::HealthCheck::new(health_check_url.to_string());
+    let health_check = consul_reg_lib::model::HealthCheck::new(health_check_url.to_string());
 
     println!("register consul health_check params:{:?}", health_check);
 
     //register consul name as order-srv.
-    let reg = consul_api::model::Registration::simple_with_health_check(
+    let reg = consul_reg_lib::model::Registration::simple_with_health_check(
         "order-srv",
         addr,
         port,

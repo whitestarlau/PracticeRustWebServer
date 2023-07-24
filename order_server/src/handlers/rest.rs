@@ -15,7 +15,6 @@ use tracing::{info, instrument};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
-    consul_api,
     db_access::db::{add_new_order_from_db, get_all_orders_from_db},
     models::{
         order::{AddOrder, AddOrderResult, GetOrderParams, NewOrderToken, Order},
@@ -75,8 +74,8 @@ pub async fn add_new_order(
     if let Some(claims) = claims_op {
         let uuid = claims.sub;
         //从consul获取库存微服务的地址
-        let cs = consul_api::consul::Consul::newDefault().map_err(map_consult_error)?;
-        let filter = consul_api::model::Filter::ID(state.inventory_srv_id);
+        let cs = consul_reg_lib::consul::Consul::newDefault().map_err(map_consult_error)?;
+        let filter = consul_reg_lib::model::Filter::ID(state.inventory_srv_id);
         let srv_option = cs.get_service(&filter).await.map_err(map_consult_error)?;
 
         if let Some(srv) = srv_option {

@@ -9,6 +9,7 @@ default-run = "inventory-service"
 
 [dependencies]
 common_lib = { path = "../common_lib" }
+consul_reg_lib = { path = "../consul_reg_lib" }
 
 axum = "0.6.10"
 tokio = { version = "1.0", features = ["full"] }

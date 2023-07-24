@@ -1,7 +1,5 @@
 use sqlx::PgPool;
 
-use crate::consul_api::consul::Consul;
-
 #[derive(Clone,Debug)]
 pub struct AppState {
     pub pool: PgPool,

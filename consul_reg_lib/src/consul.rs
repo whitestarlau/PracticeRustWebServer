@@ -9,6 +9,9 @@ pub struct Consul {
 }
 
 impl Consul {
+    pub fn newDefault() -> Result<Self, reqwest::Error> {
+        return Consul::new(ConsulOption::default());
+    }
     
     pub fn new(option: ConsulOption) -> Result<Self, reqwest::Error> {
         let client = reqwest::Client::builder()
@@ -75,7 +78,7 @@ impl Consul {
 
 #[cfg(test)]
 mod tests {
-    use crate::consul_api::model::{Registration, HealthCheck};
+    use crate::model::{Registration, HealthCheck};
 
     use super::*;
     #[tokio::test]
@@ -106,6 +109,7 @@ mod tests {
             12345,
             health_check
         );
+        
         let r = cs.register(&registration).await;
         assert!(r.is_ok());
     }
