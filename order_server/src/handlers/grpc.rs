@@ -1,4 +1,7 @@
+use std::f32::consts::E;
+
 use sqlx::PgPool;
+use uuid::Uuid;
 
 use crate::{
     db_access::db::{add_new_order_from_db, get_all_orders_from_db},
@@ -32,21 +35,29 @@ impl OrderService for GrpcServiceImpl {
         request: tonic::Request<order_proto::GetOrderRequest>,
     ) -> Result<tonic::Response<order_proto::GetOrderRespone>, tonic::Status> {
         let request_data = request.into_inner();
-        let db = get_all_orders_from_db(
-            &self.pool,
-            request_data.user_id,
-            request_data.page,
-            request_data.page_size,
-        )
-        .await;
+
+        let uuid_result = Uuid::parse_str(&request_data.user_id);
+        let uuid: Uuid;
+        if let Ok(uid) = uuid_result {
+            uuid = uid;
+        } else {
+            let response = order_proto::GetOrderRespone { orders: vec![] };
+            return Ok(tonic::Response::new(response));
+        }
+
+        let db =
+            get_all_orders_from_db(&self.pool, uuid, request_data.page, request_data.page_size)
+                .await;
 
         let mut response_datas: Vec<order_proto::Order> = Vec::new();
         if let Ok(datas) = db {
             for order in datas {
                 // let item_id_str = serde_json::to_string(&order.items_id).unwrap_or_default();
                 let des = order.description.unwrap_or_default();
+
+                let uuid_str = order.user_id.to_string();
                 let proto_order = order_proto::Order {
-                    user_id: order.user_id,
+                    user_id: uuid_str,
                     items_id: order.item_id,
                     price: order.price,
                     count: order.count,
@@ -71,8 +82,16 @@ impl OrderService for GrpcServiceImpl {
     ) -> Result<tonic::Response<order_proto::AddOrderRespone>, tonic::Status> {
         let request_data = request.into_inner();
 
+        let uuid_result = Uuid::parse_str(&request_data.user_id);
+        let uuid: Uuid;
+        if let Ok(uid) = uuid_result {
+            uuid = uid;
+        } else {
+            let response = order_proto::AddOrderRespone { result: 1 };
+            return Ok(tonic::Response::new(response));
+        }
+
         let add = AddOrder {
-            user_id: request_data.user_id,
             items_id: request_data.items_id,
             price: request_data.price,
             count: request_data.count,
@@ -85,6 +104,7 @@ impl OrderService for GrpcServiceImpl {
             &self.local_pool,
             "https://127.0.0.1:3001".to_string(),
             add,
+            uuid,
         )
         .await;
 

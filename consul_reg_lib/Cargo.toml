@@ -1,0 +1,17 @@
+[package]
+name = "consul_reg_lib"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+
+serde = { version = "1.0.134", features = ["derive"] }
+serde_json = "1.0"
+
+# 用来请求consul中心的接口
+reqwest = { version = "0.11", features = ["json"] }
+urlencoding = "2"
+

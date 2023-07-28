@@ -1,12 +1,12 @@
-use sqlx::{PgPool};
+use sqlx::PgPool;
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct AppState {
     pub pool: PgPool,
     pub local_pool: PgPool,
-    pub inventory_addr: String,
+    pub inventory_srv_id: String,
+    // pub inventory_addr: String,
 }
-
 
 #[derive(FromPrimitive)]
 pub enum InventoryState {

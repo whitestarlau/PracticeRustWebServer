@@ -8,6 +8,10 @@ default-run = "order-service"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+jwt_lib = { path = "../jwt_lib" }
+common_lib = { path = "../common_lib" }
+consul_reg_lib = { path = "../consul_reg_lib" }
+
 axum = "0.6.10"
 tokio = { version = "1.0", features = ["full"] }
 tower = { version = "0.4", features = ["util"] }
@@ -17,6 +21,7 @@ sqlx = { version = "0.6.2", features = [
     "runtime-tokio-rustls",
     "macros",
     "chrono",
+    "uuid",
 ] }
 serde = { version = "1.0.134", features = ["derive"] }
 serde_json = "1.0"
@@ -37,6 +42,19 @@ num-derive = "0.3"
 
 # cron定时器
 tokio-cron-scheduler = "0.9.4"
+
+# 用来请求consul中心的接口
+reqwest = { version = "0.11", features = ["json"] }
+urlencoding = "2"
+
+# 分布式追踪
+log = "0.4"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+tracing-appender = "0.2.2"
+
+# uuid生成
+uuid = { version = "1.4.0", features = ["serde", "v4"] }
 
 [build-dependencies]
 tonic-build = "0.8"

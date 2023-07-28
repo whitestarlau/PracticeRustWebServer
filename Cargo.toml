@@ -1,0 +1,10 @@
+[workspace]
+
+members = [
+    "certify_server",
+    "order_server",
+    "inventory_server",
+    "jwt_lib",
+    "common_lib",
+    "consul_reg_lib",
+]

@@ -8,9 +8,11 @@ use axum::{
 use chrono::Utc;
 use dotenv::dotenv;
 use idgenerator::{IdGeneratorOptions, IdInstance};
-use std::{env, sync::Arc};
+use std::{env, fs::File, sync::Arc};
 use std::{net::SocketAddr, thread};
 use tokio_cron_scheduler::{Job, JobScheduler};
+use tracing::{info, span, Level, Subscriber};
+use tracing_appender::rolling::{RollingFileAppender, Rotation};
 
 use sqlx::postgres::PgPoolOptions;
 
@@ -20,6 +22,8 @@ use crate::{
     models::state::AppState,
     multiplexservice::MultiplexService,
 };
+
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[path = "../db_access/mod.rs"]
 mod db_access;
@@ -31,6 +35,7 @@ mod models;
 
 #[path = "../multiplex_service.rs"]
 mod multiplexservice;
+
 
 fn main() {
     thread::spawn(|| {
@@ -49,6 +54,12 @@ fn main() {
 
 async fn web_server() {
     dotenv().ok();
+
+    //初始化tracing
+    let file_appender = tracing_appender::rolling::hourly("./axum_log", "prefix.log");
+    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+    // tracing_subscriber::registry().with(fmt::layer()).init();
+    tracing_subscriber::fmt().with_writer(non_blocking).init();
 
     // 雪花算法生成唯一id
     let options = IdGeneratorOptions::new().worker_id(1).worker_id_bit_len(6);
@@ -79,12 +90,14 @@ async fn web_server() {
     let app_state = AppState {
         pool: db_pool,
         local_pool: local_db_pool,
-        inventory_addr: "https://127.0.0.1:3001".to_string(),
+        inventory_srv_id: "inventory-srv".to_string(),
     };
+
+    let health_check_path = "/health_check";
 
     // build our application with a route
     let rest = Router::new()
-        .route("/", get(health_handler))
+        .route(health_check_path, get(health_handler))
         .route("/orders", get(get_all_orders))
         .route("/add_order", post(add_new_order))
         .route("/request_order_token", get(request_new_order_token))
@@ -97,10 +110,13 @@ async fn web_server() {
     let service = MultiplexService::new(rest, grpc);
 
     // run it
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = "127.0.0.1:3002";
     println!("listening on {}", addr);
 
-    axum::Server::bind(&addr)
+    //向consul中心注册自己
+    tokio::spawn(register_consul(&addr, health_check_path));
+
+    axum::Server::bind(&addr.parse().unwrap())
         // .serve(rest.into_make_service())
         .serve(tower::make::Shared::new(service))
         .await
@@ -123,10 +139,12 @@ async fn corn_aysnc() {
     );
 
     let job = Job::new("1/10 * * * * *", move |uuid, l| {
+        let span = span!(Level::TRACE, "corn_async");
+        let enter = span.enter();
+
         let now = Utc::now().timestamp_millis();
 
-        println!("I run every 10 seconds ts:{}", now);
-        //TODO 进行定时任务
+        info!("I run every 10 seconds ts:{}", now);
 
         let db_pool = db_pool_arc.clone();
         let local_db_pool = local_db_pool_arc.clone();
@@ -147,8 +165,37 @@ async fn corn_aysnc() {
     loop {
         //一直等待，这里的定时任务要永久执行下去。
         if let Ok(Some(it)) = sched.time_till_next_job().await {
-            println!("time_till_next_job {:?}", it);
+            info!("time_till_next_job {:?}", it);
             tokio::time::sleep(it).await;
         };
     }
+}
+
+/**
+ * 注册微服务到consul中
+ */
+async fn register_consul(addr: &str, health_check_path: &str) {
+    println!("register consul doing...");
+    let addrs: Vec<&str> = addr.split(":").collect();
+    let addr = addrs[0];
+    let port: i32 = addrs[1].parse().unwrap();
+    let opt = consul_reg_lib::model::ConsulOption::default();
+    let cs = consul_reg_lib::consul::Consul::new(opt).unwrap();
+
+    let health_check_url = format!("http://{}:{}{}", addr, port, health_check_path);
+
+    let health_check = consul_reg_lib::model::HealthCheck::new(health_check_url.to_string());
+
+    println!("register consul health_check params:{:?}", health_check);
+
+    //register consul name as order-srv.
+    let reg = consul_reg_lib::model::Registration::simple_with_health_check(
+        "order-srv",
+        addr,
+        port,
+        health_check,
+    );
+
+    cs.register(&reg).await.unwrap();
+    println!("register consul done.");
 }

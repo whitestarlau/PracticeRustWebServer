@@ -2,7 +2,7 @@ drop table if exists orders;
 create table orders (
        id serial primary key,
 
-       user_id BIGINT not null,
+       user_id UUID not null,
 
        item_id INT not null,
        price INT not null,

@@ -2,12 +2,14 @@ use std::f32::consts::E;
 
 use axum::http::StatusCode;
 use chrono::NaiveDateTime;
+use common_lib::internal_error;
 use sqlx::postgres::PgPool;
+use tracing::info;
+use uuid::Uuid;
 
 use crate::{
     db_access::repo::deduction_inventory_call,
     models::{
-        error::internal_error,
         order::{AddOrder, AddOrderResult, Order},
         state::{InventoryResult, InventoryState},
     },
@@ -19,7 +21,7 @@ mod inventory_proto {
 
 pub async fn get_all_orders_from_db(
     pool: &PgPool,
-    user_id: i64,
+    user_id: Uuid,
     page: i64,
     page_size: i64,
 ) -> Result<Vec<Order>, (StatusCode, String)> {
@@ -48,7 +50,7 @@ pub async fn get_all_orders_from_db(
     .await
     .map_err(internal_error)?;
 
-    println!("get_all_orders_from_db size: {}", orders.len());
+    info!("get_all_orders_from_db size: {}", orders.len());
 
     Ok(orders)
 }
@@ -58,6 +60,7 @@ pub async fn add_new_order_from_db(
     local_pool: &PgPool,
     inventory_addr: String,
     data: AddOrder,
+    uuid: Uuid,
 ) -> Result<AddOrderResult, (StatusCode, String)> {
     let des = data.description.unwrap_or_default();
     let price = data.price;
@@ -70,7 +73,7 @@ pub async fn add_new_order_from_db(
     let ts_1970 = NaiveDateTime::from_timestamp_opt(0, 0).unwrap_or_default();
 
     let insert_result :Result<i32, (StatusCode, String)> = sqlx::query!("INSERT INTO orders (user_id, item_id, price, count, currency, pay_time, description,inventory_state) VALUES ($1, $2, $3, $4, $5, $6, $7,$8) RETURNING id",
-        data.user_id,
+        uuid,
         data.items_id,
         data.price,data.count, data.currency,
         ts_1970, des,
@@ -85,7 +88,7 @@ pub async fn add_new_order_from_db(
         Ok(order_id) => {
             let insert_msg = sqlx::query!(
                 "INSERT INTO orders_de_inventory_msg (user_id, order_id) VALUES ($1, $2) RETURNING id",
-                data.user_id,
+                uuid,
                 order_id,
             )
             .map(|row| row.id)
