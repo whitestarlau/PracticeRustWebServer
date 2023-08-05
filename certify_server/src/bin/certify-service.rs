@@ -6,6 +6,7 @@ extern crate lazy_static;
 use axum::{Router, routing::{get, post}};
 use sqlx::postgres::PgPoolOptions;
 use dotenv::dotenv;
+use tower_http::cors::CorsLayer;
 
 use crate::{models::state::AppState, handlers::rest::{health_handler, sign_up, sign_in, verify_token}};
 
@@ -56,6 +57,7 @@ async fn web_server() {
         .route("/sign_up", post(sign_up))
         .route("/sign_in", post(sign_in))
         .route("/verify", post(verify_token).get(verify_token))
+        .layer(CorsLayer::permissive())
         .with_state(app_state);
 
     // run it
