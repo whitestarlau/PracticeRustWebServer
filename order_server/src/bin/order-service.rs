@@ -13,6 +13,7 @@ use std::{net::SocketAddr, thread};
 use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{info, span, Level, Subscriber};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
+use tower_http::cors::CorsLayer;
 
 use sqlx::postgres::PgPoolOptions;
 
@@ -100,7 +101,8 @@ async fn web_server() {
         .route(health_check_path, get(health_handler))
         .route("/orders", get(get_all_orders))
         .route("/add_order", post(add_new_order))
-        .route("/request_order_token", get(request_new_order_token))
+        .route("/request_order_token", get(request_new_order_token).post(request_new_order_token))
+        .layer(CorsLayer::permissive())
         .with_state(app_state);
 
     let grpc = get_grpc_router(db_pool2, local_db_pool2);

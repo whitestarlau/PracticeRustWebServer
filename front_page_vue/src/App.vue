@@ -4,43 +4,54 @@ import TheWelcome from './components/TheWelcome.vue'
 import { RouterLink, RouterView } from 'vue-router'
 
 import { reactive, onMounted, ref } from 'vue'
+import { tokenStore } from './store.js'
 
-// const hits = ref([]);
 
-// onMounted((async () => {
-//   const data = await fetch(
-//     `https://hn.algolia.com/api/v1/search?query=vue`
-//   ).then(rsp => rsp.json())
-//   console.log("liuyx on get data: " + data.hits)
-//   hits.value = data.hits
-// }))
+function sign_out(event) {
+  tokenStore.token = {};
+  localStorage.setItem("JwtKey","");
+}
+
+onMounted(() => {
+  console.log("onMounted.");
+
+  const initTokenStr = localStorage.getItem("JwtKey");
+
+  console.log("init token str:" + initTokenStr);
+
+  if (initTokenStr !== "{}" && initTokenStr !== null) {
+    let token = JSON.parse(initTokenStr);
+    tokenStore.token = token;
+  }
+})
 
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
+  <div>
+    <header>
+      <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
 
-    <div class="wrapper">
-      <HelloWorld msg="Rust mall demo." />
-      <nav>
-        <RouterLink to="/sign_in">signIn</RouterLink>
-        <RouterLink to="/sign_up">signUp</RouterLink>
-      </nav>
-    </div>
-  </header>
+      <h1 class="green">Rust mall {{ emptyToken }} {{ tokenStore.token.token_type }}</h1>
+
+      <div>
+        <nav>
+          <div v-if="JSON.stringify(tokenStore.token) === '{}'">
+            <RouterLink to="/sign_in">signIn</RouterLink>
+            <RouterLink to="/sign_up">signUp</RouterLink>
+          </div>
+          <div v-else>
+            <RouterLink to="/">goodsList</RouterLink>
+            <button v-on:click="sign_out">sign out</button>
+          </div>
+        </nav>
+      </div>
+
+    </header>
+  </div>
 
   <main>
-    <!-- <TheWelcome /> -->
-
-    <!-- <ul>
-      <li v-for="item of hits" :key="item.objectID">
-        <a :href="item.url">{{ item.title }}</a>
-      </li>
-    </ul> -->
-
     <RouterView />
-
   </main>
 </template>
 
@@ -57,8 +68,12 @@ header {
 @media (min-width: 1024px) {
   header {
     display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
   }
 
   .logo {
@@ -67,7 +82,8 @@ header {
 
   header .wrapper {
     display: flex;
-    place-items: flex-start;
+    flex-direction: row;
+    /* place-items: flex-direction; */
     flex-wrap: wrap;
   }
 
