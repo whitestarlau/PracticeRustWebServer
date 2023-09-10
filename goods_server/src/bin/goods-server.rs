@@ -1,23 +1,20 @@
 use std::env;
 
-#[macro_use]
-extern crate lazy_static;
+// #[macro_use]
+// extern crate lazy_static;
 
 use axum::{Router, routing::{get, post}};
 use sqlx::postgres::PgPoolOptions;
 use dotenv::dotenv;
 use tower_http::cors::CorsLayer;
 
-use crate::{models::state::AppState, handlers::rest::{health_handler, sign_up, sign_in, verify_token}};
+use crate::{models::state::AppState, handlers::rest::{health_handler, get_goods_summary, get_goods_detail}};
 
 #[path = "../models/mod.rs"]
 mod models;
 
 #[path = "../handlers/mod.rs"]
 mod handlers;
-
-#[path = "../config/mod.rs"]
-mod config;
 
 #[path = "../db_access/mod.rs"]
 mod db_access;
@@ -45,23 +42,22 @@ async fn web_server() {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL should be set.");
     let db_pool = PgPoolOptions::new().connect(&database_url).await.unwrap();
 
-    let app_state = AppState {
-        pool: db_pool,
-    };
+    // let app_state = AppState {
+    //     pool: db_pool,
+    // };
 
     let health_check_path = "/health_check";
 
     // build our application with a route
     let rest = Router::new()
         .route(health_check_path, get(health_handler))
-        .route("/sign_up", post(sign_up))
-        .route("/sign_in", post(sign_in))
-        .route("/verify", post(verify_token).get(verify_token))
+        .route("/goods_list", post(get_goods_summary).get(get_goods_summary))
+        .route("/goods_detail", post(get_goods_detail).get(get_goods_detail))
         .layer(CorsLayer::permissive())
-        .with_state(app_state);
+        .with_state(db_pool);
 
     // run it
-    let addr = "127.0.0.1:3003";
+    let addr = "127.0.0.1:3004";
     println!("listening on {}", addr);
 
     //向consul中心注册自己

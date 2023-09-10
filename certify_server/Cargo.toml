@@ -58,6 +58,9 @@ thiserror = "1"
 # 用于帮助解析请求头
 headers = "0.3"
 
+# 中间件
+tower = { version = "0.4", features = ["full"] }
+tower-http = { version = "0.2", features = ["full"] }
 
 
 [[bin]]

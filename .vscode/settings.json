@@ -1,0 +1,6 @@
+{
+    "editor.fontSize": 18,
+    "rust-analyzer.linkedProjects": [
+        "./goods_server/Cargo.toml"
+    ]
+}
