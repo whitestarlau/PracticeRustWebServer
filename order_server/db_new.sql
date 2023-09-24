@@ -29,3 +29,16 @@ CREATE INDEX idx_orders_user_id ON orders (user_id);
 --        '2023-03-10 10:00:00',
 --        '1970-01-01 00:00:00',
 --        '');
+
+
+-- 本地消息表
+drop table if exists orders_de_inventory_msg;
+create table orders_de_inventory_msg (
+       id serial primary key,
+
+       user_id UUID not null,
+
+       order_id INT not null,
+
+       description varchar(140)
+);

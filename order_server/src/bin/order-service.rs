@@ -133,12 +133,6 @@ async fn corn_aysnc() {
         env::var("DATABASE_URL_LOCAL").expect("DATABASE_URL_LOCAL should be set.");
 
     let db_pool_arc = Arc::new(PgPoolOptions::new().connect(&database_url).await.unwrap());
-    let local_db_pool_arc = Arc::new(
-        PgPoolOptions::new()
-            .connect(&local_database_url)
-            .await
-            .unwrap(),
-    );
 
     let job = Job::new("1/10 * * * * *", move |uuid, l| {
         let span = span!(Level::TRACE, "corn_async");
@@ -149,10 +143,8 @@ async fn corn_aysnc() {
         info!("I run every 10 seconds ts:{}", now);
 
         let db_pool = db_pool_arc.clone();
-        let local_db_pool = local_db_pool_arc.clone();
         poll_inventory_state_order_from_db(
             &db_pool,
-            &local_db_pool,
             "https://127.0.0.1:3001".to_string(),
         );
     })

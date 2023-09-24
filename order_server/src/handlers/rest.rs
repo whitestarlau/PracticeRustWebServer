@@ -80,7 +80,7 @@ pub async fn add_new_order(
 
         if let Some(srv) = srv_option {
             let inventory_addr = srv.address;
-            add_new_order_from_db(&state.pool, &state.local_pool, inventory_addr, data, uuid)
+            add_new_order_from_db(&state.pool, inventory_addr, data, uuid)
                 .await
                 .map(map_ok_result)
         } else {

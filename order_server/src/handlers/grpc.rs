@@ -101,7 +101,6 @@ impl OrderService for GrpcServiceImpl {
         };
         let db_result = add_new_order_from_db(
             &self.pool,
-            &self.local_pool,
             "https://127.0.0.1:3001".to_string(),
             add,
             uuid,
