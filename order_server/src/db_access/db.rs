@@ -3,7 +3,7 @@ use std::f32::consts::E;
 use axum::http::StatusCode;
 use chrono::NaiveDateTime;
 use common_lib::internal_error;
-use sqlx::postgres::PgPool;
+use sqlx::{postgres::PgPool, Acquire};
 use tracing::info;
 use uuid::Uuid;
 
@@ -57,7 +57,6 @@ pub async fn get_all_orders_from_db(
 
 pub async fn add_new_order_from_db(
     pool: &PgPool,
-    local_pool: &PgPool,
     inventory_addr: String,
     data: AddOrder,
     uuid: Uuid,
@@ -72,47 +71,62 @@ pub async fn add_new_order_from_db(
 
     let ts_1970 = NaiveDateTime::from_timestamp_opt(0, 0).unwrap_or_default();
 
-    let insert_result :Result<i32, (StatusCode, String)> = sqlx::query!("INSERT INTO orders (user_id, item_id, price, count, currency, pay_time, description,inventory_state) VALUES ($1, $2, $3, $4, $5, $6, $7,$8) RETURNING id",
-        uuid,
-        data.items_id,
-        data.price,data.count, data.currency,
-        ts_1970, des,
-        InventoryState::DOING as i32
-    )
-        .map(|row| row.id)
-        .fetch_one(pool)
-        .await
-        .map_err(internal_error);
+    let mut conn = pool.acquire().await.unwrap();
+    let mut tx = conn.begin().await.map_err(internal_error)?;
 
-    match insert_result {
+    let insert_order =  sqlx::query!("INSERT INTO orders (user_id, item_id, price, count, currency, pay_time, description,inventory_state) VALUES ($1, $2, $3, $4, $5, $6, $7,$8) RETURNING id",uuid,data.items_id, data.price,data.count, data.currency,ts_1970, des,InventoryState::DOING as i32)
+                .map(|row| row.id)
+                .fetch_one(&mut tx)
+                .await;
+
+    let mut order_id_cp = -1;
+    let result = match insert_order {
         Ok(order_id) => {
+            order_id_cp = order_id;
+
+            println!("insert_order suceess");
+
             let insert_msg = sqlx::query!(
                 "INSERT INTO orders_de_inventory_msg (user_id, order_id) VALUES ($1, $2) RETURNING id",
                 uuid,
                 order_id,
             )
             .map(|row| row.id)
-            .fetch_one(local_pool)
+            .fetch_one(&mut tx)
             .await
             .map_err(internal_error);
 
-            deduction_inventory(
-                pool,
-                local_pool,
-                inventory_addr,
-                data.items_id,
-                data.count,
-                order_id,
-            )
-            .await;
+            let innerResult = if let Err(e) = insert_msg {
+                println!("insert_msg fail should rollback.");
 
-            let result = AddOrderResult {
-                description: "add successed.".to_string(),
+                Err(e)
+            } else {
+                println!("insert_msg success,try rpc call.");
+
+                
+                let addResult = AddOrderResult {
+                    description: "add successed.".to_string(),
+                };
+                Ok(addResult)
             };
-            Ok(result)
+
+            innerResult
         }
-        Err(e) => Err(e),
+        Err(e) => {
+            println!("insert_order failed should rollback.");
+
+            Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+        }
+    };
+
+    if let Ok(_) = result {
+        tx.commit().await.unwrap();
+        deduction_inventory(pool, inventory_addr, data.items_id, data.count, order_id_cp).await;
+    } else {
+        tx.rollback().await.unwrap();
     }
+
+    return result;
 }
 
 /**
@@ -121,7 +135,6 @@ pub async fn add_new_order_from_db(
  */
 pub async fn deduction_inventory(
     pool: &PgPool,
-    local_pool: &PgPool,
     inventory_addr: String,
     items_id: i32,
     count: i32,
@@ -138,12 +151,15 @@ pub async fn deduction_inventory(
         };
 
         //删除消息数据库
+        let mut conn = pool.acquire().await.unwrap();
+        let mut tx = conn.begin().await.map_err(internal_error)?;
+
         //注意，这一步可能写成功也可能写失败，所以可能导致deduction_inventory_call反复被调用，库存那边需要保证同一个订单id不会重复扣减。
         let _update_msg_result = sqlx::query!(
             "DELETE FROM orders_de_inventory_msg where  order_id = ($1)",
             order_id
         )
-        .fetch_one(local_pool)
+        .fetch_one(&mut tx)
         .await
         .map_err(internal_error);
 
@@ -153,9 +169,19 @@ pub async fn deduction_inventory(
             inventory_state as i32,
             order_id
         )
-        .fetch_one(pool)
+        .fetch_one(&mut tx)
         .await
         .map_err(internal_error);
+
+        if let Ok(_) = _update_msg_result {
+            if let Ok(a) = _update_result {
+                tx.commit().await.unwrap();
+            } else {
+                tx.rollback().await.unwrap();
+            }
+        } else {
+            tx.rollback().await.unwrap();
+        }
     } else {
         // 远程调用失败，不代表扣减库存失败，等待定时器轮训的时候继续尝试
         //TODO 添加定时器轮询orders_de_inventory_msg表

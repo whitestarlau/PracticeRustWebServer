@@ -13,7 +13,6 @@ use crate::{
 
 pub async fn poll_inventory_state_order_from_db(
     pool: &PgPool,
-    local_pool: &PgPool,
     inventory_addr: String,
 ) {
     let orders_msg: Result<Vec<OrderDeInventoryMsg>, _> =
@@ -25,14 +24,14 @@ pub async fn poll_inventory_state_order_from_db(
                     order_id: row.order_id,
                 }
             })
-            .fetch_all(local_pool)
+            .fetch_all(pool)
             .await
             .map_err(internal_error);
 
 
     match orders_msg {
         Ok(msg_list) => for msg in msg_list {
-            try_de_inventory(pool, local_pool, inventory_addr.clone(), msg);
+            try_de_inventory(pool, inventory_addr.clone(), msg);
         },
         Err(e) => {
             //print error msg;
@@ -42,7 +41,6 @@ pub async fn poll_inventory_state_order_from_db(
 
 async fn try_de_inventory(
     pool: &PgPool,
-    local_pool: &PgPool,
     inventory_addr: String,
     msg: OrderDeInventoryMsg,
 ) {
@@ -68,7 +66,6 @@ async fn try_de_inventory(
     if let Ok(order) = orders {
         deduction_inventory(
             pool,
-            local_pool,
             inventory_addr,
             order.item_id,
             order.count,

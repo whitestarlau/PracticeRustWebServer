@@ -27,6 +27,9 @@ impl InventoryService for GrpcServiceImpl {
         &self,
         request: tonic::Request<proto::DeductionInventoryRequest>,
     ) -> Result<tonic::Response<proto::DeductionInventoryRespone>, tonic::Status> {
+        println!("GrpcServiceImpl deduction_inventory call.");
+
+        
         let request_data = request.into_inner();
         let request_data_inner = DeducteInventoryRequest {
             inventory_id: request_data.inventory_id.into(),
