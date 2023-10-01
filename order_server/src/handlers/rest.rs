@@ -7,6 +7,7 @@ use axum::{
     Json,
 };
 
+use chrono::Utc;
 use futures::TryFutureExt;
 use idgenerator::IdInstance;
 
@@ -24,7 +25,7 @@ use crate::{
 
 #[instrument]
 pub async fn health_handler() -> Html<&'static str> {
-    println!("some one call health check api.");
+    println!("some one call health check api.{}",Utc::now());
     Html("<h1>Order server health ok.</h1>")
 }
 

@@ -152,7 +152,7 @@ pub async fn deduction_inventory(
 
         //删除消息数据库
         let mut conn = pool.acquire().await.unwrap();
-        let mut tx = conn.begin().await.map_err(internal_error)?;
+        let mut tx = conn.begin().await.unwrap();
 
         //注意，这一步可能写成功也可能写失败，所以可能导致deduction_inventory_call反复被调用，库存那边需要保证同一个订单id不会重复扣减。
         let _update_msg_result = sqlx::query!(
