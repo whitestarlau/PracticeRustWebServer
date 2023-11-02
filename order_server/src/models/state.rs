@@ -6,6 +6,7 @@ pub struct AppState {
     pub local_pool: PgPool,
     pub inventory_srv_id: String,
     // pub inventory_addr: String,
+    pub redis_client : redis::Client
 }
 
 #[derive(FromPrimitive)]

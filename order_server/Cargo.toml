@@ -60,6 +60,9 @@ tracing-appender = "0.2.2"
 # uuid生成
 uuid = { version = "1.4.0", features = ["serde", "v4"] }
 
+# redis
+redis = "0.23.3"
+
 [build-dependencies]
 tonic-build = "0.8"
 

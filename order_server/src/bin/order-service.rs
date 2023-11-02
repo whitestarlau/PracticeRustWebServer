@@ -7,6 +7,7 @@ use axum::{
 };
 use chrono::Utc;
 use dotenv::dotenv;
+use hyper::Client;
 use idgenerator::{IdGeneratorOptions, IdInstance};
 use std::{env, fs::File, sync::Arc};
 use std::{net::SocketAddr, thread};
@@ -88,10 +89,14 @@ async fn web_server() {
         .await
         .unwrap();
 
+    let redis_url =  env::var("REDIS_URL").expect("DATABASE_URL_LOCAL should be set.");
+    let redis_client = redis::Client::open(redis_url).unwrap();
+    
     let app_state = AppState {
         pool: db_pool,
         local_pool: local_db_pool,
         inventory_srv_id: "inventory-srv".to_string(),
+        redis_client : redis_client
     };
 
     let health_check_path = "/health_check";

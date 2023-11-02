@@ -8,10 +8,13 @@ use axum::{
 };
 
 use chrono::Utc;
+use common_lib::internal_error;
 use futures::TryFutureExt;
+use hyper::client::conn;
 use idgenerator::IdInstance;
 
 use jwt_lib::jwt::Claims;
+use redis::Commands;
 use tracing::{info, instrument};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -25,7 +28,7 @@ use crate::{
 
 #[instrument]
 pub async fn health_handler() -> Html<&'static str> {
-    println!("some one call health check api.{}",Utc::now());
+    println!("some one call health check api.{}", Utc::now());
     Html("<h1>Order server health ok.</h1>")
 }
 
@@ -52,11 +55,18 @@ pub async fn get_all_orders(
  */
 pub async fn request_new_order_token(
     claims_op: Option<Claims>,
-    State(_pool): State<AppState>,
+    State(state): State<AppState>,
 ) -> Result<axum::Json<NewOrderToken>, (StatusCode, String)> {
     if let Some(claims) = claims_op {
         let id = IdInstance::next_id();
         println!("request_new_order_token: {}", id);
+        let mut connect = state
+            .redis_client
+            .get_connection()
+            .map_err(internal_error)?;
+        let _ = connect.set(id, 1).map_err(internal_error)?;
+        let _ = connect.expire(id,10).map_err(internal_error)?;
+
         Ok(axum::Json(NewOrderToken { token: id }))
     } else {
         return Err((
@@ -72,6 +82,22 @@ pub async fn add_new_order(
     Json(data): Json<AddOrder>,
 ) -> Result<axum::Json<AddOrderResult>, (StatusCode, String)> {
     //TODO 此处插入token数据合法性校验
+
+    let mut connect = state
+        .redis_client
+        .get_connection()
+        .map_err(internal_error)?;
+    let tokenExist: bool = connect.exists(data.token).map_err(internal_error)?;
+    print!("add_new_order tokenExist {}",tokenExist);
+    if !tokenExist {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "token invalid.".to_string(),
+        ));
+    }
+    //无论如何，这个key存在就要立即销毁
+    let _ :Result<(), redis::RedisError> = connect.expire(data.token,0);
+
     if let Some(claims) = claims_op {
         let uuid = claims.sub;
         //从consul获取库存微服务的地址
